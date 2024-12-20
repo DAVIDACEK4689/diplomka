@@ -4,8 +4,7 @@ from typing import Union, Callable
 import pandas as pd
 import nba_api.stats.endpoints as nba
 
-STATS_COLUMNS = ['FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT',
-                 'OREB', 'DREB', 'REB', 'AST', 'TOV', 'STL', 'BLK', 'BLKA', 'PF', 'PFD', 'PTS']
+from utils.data_preprocessor_classes import GameEntity, Team
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--season_count", default=10, type=int, help="Number of seasons.")
@@ -37,7 +36,7 @@ def load_from_endpoint(season_count: int, last_year: int, endpoint: Callable[...
     for year in range(last_year - season_count, last_year):
         season = endpoint(season_nullable=f"{year}-{str(year + 1)[2:]}")
         season = season.get_data_frames()[0]
-        seasons = pd.concat([seasons, season], ignore_index=True)
+        seasons = pd.concat([seasons, season])
         print(f"Season {year + 1} loaded, matches: {len(season['GAME_ID'].unique())}")
 
     seasons['GAME_DATE'] = pd.to_datetime(seasons['GAME_DATE']).dt.date
@@ -46,7 +45,7 @@ def load_from_endpoint(season_count: int, last_year: int, endpoint: Callable[...
 
 def load_odds(season_count: int, last_year: int, odds_load_path: str) -> pd.DataFrame:
     rename1 = {'date': 'GAME_DATE', 'score': 'HOME_PTS', 'opponentScore': 'AWAY_PTS'}
-    rename2 = {'moneyLine': 'HOME_ODDS', 'opponentMoneyLine': 'AWAY_ODDS'}
+    rename2 = {'moneyLine': 'HOME_TEAM_ODDS', 'opponentMoneyLine': 'AWAY_TEAM_ODDS'}
     rename3 = {'team': 'HOME_TEAM_NAME', 'opponent': 'AWAY_TEAM_NAME'}
     rename_columns = {**rename1, **rename2, **rename3}
 
@@ -71,8 +70,8 @@ def convert_odd_to_decimal(odd: int) -> float:
 
 
 def convert_odds_to_decimal(odds: pd.DataFrame) -> pd.DataFrame:
-    odds['HOME_ODDS'] = odds['HOME_ODDS'].apply(convert_odd_to_decimal)
-    odds['AWAY_ODDS'] = odds['AWAY_ODDS'].apply(convert_odd_to_decimal)
+    odds['HOME_TEAM_ODDS'] = odds['HOME_TEAM_ODDS'].apply(convert_odd_to_decimal)
+    odds['AWAY_TEAM_ODDS'] = odds['AWAY_TEAM_ODDS'].apply(convert_odd_to_decimal)
     return odds
 
 
@@ -108,14 +107,15 @@ def prepare_games(games: pd.DataFrame) -> pd.DataFrame:
     away_games = games[~games['MATCHUP'].str.contains('vs')].copy()
 
     # select columns
-    home_games = home_games[['GAME_ID', 'TEAM_ID', 'WL', 'SEASON_YEAR', 'GAME_DATE'] + STATS_COLUMNS]
-    away_games = away_games[['GAME_ID', 'TEAM_ID'] + STATS_COLUMNS]
+    home_games = home_games[['SEASON_YEAR', 'GAME_DATE', 'GAME_ID', 'TEAM_ID', 'WL'] + GameEntity.STATS_COLUMNS]
+    away_games = away_games[['GAME_ID', 'TEAM_ID', 'WL'] + GameEntity.STATS_COLUMNS]
 
     # rename columns
     home_games = home_games.rename(columns={'TEAM_ID': 'HOME_TEAM_ID', 'WL': 'HOME_TEAM_WIN'})
-    away_games = away_games.rename(columns={'TEAM_ID': 'AWAY_TEAM_ID'})
-    home_games = home_games.rename(columns={col: f'HOME_{col}' for col in STATS_COLUMNS})
-    away_games = away_games.rename(columns={col: f'AWAY_{col}' for col in STATS_COLUMNS})
+    away_games = away_games.rename(columns={'TEAM_ID': 'AWAY_TEAM_ID', 'WL': 'AWAY_TEAM_WIN'})
+    home_games = home_games.rename(columns=dict(zip(GameEntity.STATS_COLUMNS, Team.HOME_STATS_COLUMNS)))
+    away_games = away_games.rename(columns=dict(zip(GameEntity.STATS_COLUMNS, Team.AWAY_STATS_COLUMNS)))
+
     return pd.merge(home_games, away_games, on='GAME_ID')
 
 
@@ -127,7 +127,7 @@ def update_players_data(players) -> pd.DataFrame:
 
 
 def prepare_players(players: pd.DataFrame) -> pd.DataFrame:
-    selected_columns = ['SEASON_YEAR', 'PLAYER_ID', 'TEAM_ID', 'GAME_ID', 'MIN'] + STATS_COLUMNS
+    selected_columns = ['SEASON_YEAR', 'GAME_DATE', 'PLAYER_ID', 'TEAM_ID', 'GAME_ID', 'MIN'] + GameEntity.STATS_COLUMNS
     players = players[selected_columns].copy()
     players = update_players_data(players)
     return players
