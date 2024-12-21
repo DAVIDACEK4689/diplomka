@@ -92,17 +92,18 @@ class Team(GameEntity):
     def __init__(self, args: argparse.Namespace) -> None:
         super().__init__(args)
         self.__rest: float = 1.0
+        self.__last_game_date: date = date.min
         self.__alpha: float = 2 / (self._args.last_n_games + 1)
         self.__players: defaultdict[int, Player] = defaultdict(lambda: Player(args))
 
     def __update_rest(self, game_date: date) -> None:
-        last_game = self._games.tail(1)
-        last_game_date = last_game['GAME_DATE'].iloc[0]
-        time_diff = (game_date - last_game_date).days
-
+        time_diff = (game_date - self.__last_game_date).days
         old_rest = self.__rest
         new_rest = min(1.0, time_diff / self._args.max_rest)
-        self.__rest = self.__alpha * new_rest + (1 - self.__alpha) * old_rest
+
+        self.__last_game_date = game_date
+        rest = self.__alpha * new_rest + (1 - self.__alpha) * old_rest
+        self.__rest = round(rest, 2)
 
     def __add_players_data(self, players: pd.DataFrame, is_home_team: bool) -> None:
         for _, player_data in players.iterrows():
@@ -135,6 +136,7 @@ class Team(GameEntity):
             self.add_data(game, is_home_team)
 
         # Add players data
+        self.__update_rest(game['GAME_DATE'].iloc[-1])
         self.__add_players_data(players, is_home_team)
 
     def get_stats_before_game(self, game_date: date, teams: defaultdict[int, 'Team'], is_home_team: bool) -> pd.DataFrame:
@@ -151,7 +153,6 @@ class Team(GameEntity):
         game_date = kwargs['game_date']
         teams = kwargs['teams']
 
-        self.__update_rest(game_date)
         win_score, lose_score = self.__get_win_lose_score(games, teams, is_home_team)
 
         data = pd.DataFrame({
