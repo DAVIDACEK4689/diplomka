@@ -8,7 +8,7 @@ from utils.data_preprocessor_classes import Team
 parser = argparse.ArgumentParser()
 parser.add_argument("--load_path", default="../data", type=str, help="Path to load data.")
 parser.add_argument("--store_path", default="../featured_data", type=str, help="Path to store featured data.")
-parser.add_argument("--last_n_games", default=10, type=int, help="Number of last n games to use for prediction.")
+parser.add_argument("--last_n_games", default=5, type=int, help="Number of last n games to use for prediction.")
 parser.add_argument("--max_rest", default=4, type=int, help="Number of rest days to become completely fit")
 parser.add_argument("--average", default="ema", type=str, choices=["mean", "ema", "ema_mean"])
 parser.add_argument("--separate_home_away", default=False, type=bool, help="Separate home and away games.")
@@ -60,7 +60,7 @@ def prepare_data(args: argparse.Namespace) -> None:
     games, players = load_data(args.load_path)
     data = pd.DataFrame()
 
-    for season in games['SEASON_YEAR'].unique():
+    for season in games['SEASON_YEAR'].unique()[:4]:
         season_data = prepare_season_data(season, games, players, args)
         data = pd.concat([data, season_data])
         print(f"Season {season} prepared")

@@ -9,7 +9,7 @@ parser.add_argument("--store_path", default="../featured_data", type=str, help="
 args = parser.parse_args()
 
 def load_scaled_data(load_path: str) -> pd.DataFrame:
-    return pd.read_csv(f"{load_path}/data.csv")
+    return pd.read_csv(f"{load_path}/old_rest.csv")
 
 def get_team_data(data):
     return data.filter(regex='^HOME_TEAM|^AWAY_TEAM')

@@ -1,5 +1,4 @@
 import argparse
-import math
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from datetime import date
@@ -102,14 +101,8 @@ class Team(GameEntity):
         time_diff = (game_date - last_game_date).days
 
         old_rest = self.__rest
-        new_rest = min(self._args.max_rest, time_diff)
+        new_rest = min(1.0, time_diff / self._args.max_rest)
         self.__rest = self.__alpha * new_rest + (1 - self.__alpha) * old_rest
-
-    def __count_rest(self, game_date: date) -> float:
-        last_game = self._games.tail(1)
-        last_game_date = last_game['GAME_DATE'].iloc[0]
-        time_diff = (game_date - last_game_date).days
-        return min(self._args.max_rest, time_diff) / self._args.max_rest
 
     def __add_players_data(self, players: pd.DataFrame, is_home_team: bool) -> None:
         for _, player_data in players.iterrows():
