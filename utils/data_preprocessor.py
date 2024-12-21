@@ -10,7 +10,7 @@ parser.add_argument("--load_path", default="../data", type=str, help="Path to lo
 parser.add_argument("--store_path", default="../featured_data", type=str, help="Path to store featured data.")
 parser.add_argument("--last_n_games", default=10, type=int, help="Number of last n games to use for prediction.")
 parser.add_argument("--max_rest", default=4, type=int, help="Number of rest days to become completely fit")
-parser.add_argument("--average", default="mean", type=str, choices=["mean", "ema", "ema_mean"])
+parser.add_argument("--average", default="ema", type=str, choices=["mean", "ema", "ema_mean"])
 parser.add_argument("--separate_home_away", default=False, type=bool, help="Separate home and away games.")
 args = parser.parse_args()
 

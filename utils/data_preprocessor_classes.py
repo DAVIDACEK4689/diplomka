@@ -62,7 +62,8 @@ class GameEntity(ABC):
         elif self._args.average == 'ema_mean':
             result = last_n_games.ewm(com=self._args.last_n_games).mean().mean()
 
-        return pd.DataFrame(result).T.map(lambda x: round(x, 2))
+        data = pd.DataFrame(result).T.reset_index(drop=True)
+        return data.map(lambda x: round(x, 2))
 
 
     def __get_base_stats(self, games: pd.DataFrame) -> pd.DataFrame:
@@ -91,7 +92,18 @@ class Team(GameEntity):
 
     def __init__(self, args: argparse.Namespace) -> None:
         super().__init__(args)
+        self.__rest: float = 1.0
+        self.__alpha: float = 2 / (self._args.last_n_games + 1)
         self.__players: defaultdict[int, Player] = defaultdict(lambda: Player(args))
+
+    def __update_rest(self, game_date: date) -> None:
+        last_game = self._games.tail(1)
+        last_game_date = last_game['GAME_DATE'].iloc[0]
+        time_diff = (game_date - last_game_date).days
+
+        old_rest = self.__rest
+        new_rest = min(self._args.max_rest, time_diff)
+        self.__rest = self.__alpha * new_rest + (1 - self.__alpha) * old_rest
 
     def __count_rest(self, game_date: date) -> float:
         last_game = self._games.tail(1)
@@ -146,13 +158,11 @@ class Team(GameEntity):
         game_date = kwargs['game_date']
         teams = kwargs['teams']
 
-        rest = self.__count_rest(game_date)
-        recent_games = self.__get_recent_games_count(game_date)
+        self.__update_rest(game_date)
         win_score, lose_score = self.__get_win_lose_score(games, teams, is_home_team)
 
         data = pd.DataFrame({
-            'TEAM_REST': rest,
-            'TEAM_RECENT_GAMES': recent_games,
+            'TEAM_REST': self.__rest,
             'TEAM_WIN_SCORE': win_score,
             'TEAM_LOSE_SCORE': lose_score
         }, index=[0])
@@ -162,11 +172,6 @@ class Team(GameEntity):
         games = self._get_games(is_home_team)
         last_n_games = games.tail(self._args.last_n_games)
         return last_n_games['WIN'].mean()
-
-    def __get_recent_games_count(self, game_date):
-        start_date = game_date - pd.Timedelta(days=self._args.max_rest)
-        recent_games = self._games[self._games['GAME_DATE'] >= start_date]
-        return len(recent_games)
 
     def __get_win_lose_score(self, games: pd.DataFrame, teams: defaultdict[int, 'Team'], is_home_team: bool) -> tuple[int, int]:
         last_games = games.tail(self._args.last_n_games)

@@ -46,21 +46,33 @@ def count_rest_influence(data):
     return avg_win_rate
 
 
+def load_old_data():
+    old_games = pd.read_csv('../featured_data/old_rest.csv')
+    new_games = pd.read_csv('../featured_data/data.csv')
 
+    old_games = old_games[['GAME_ID', 'HOME_TEAM_WIN', 'HOME_TEAM_REST']]
+    old_games = old_games.rename(columns={'HOME_TEAM_REST': 'OLD_HOME_TEAM_REST', 'HOME_TEAM_WIN': 'OLD_HOME_TEAM_WIN'})
+    correlation_matrix = old_games.corr()
+    home_team_win_corr = correlation_matrix['OLD_HOME_TEAM_WIN'].drop('OLD_HOME_TEAM_WIN')
+    home_team_win_corr = home_team_win_corr.abs().sort_values(ascending=False)
+    print(home_team_win_corr.head(20))
+
+
+    new_games = new_games[['GAME_ID', 'HOME_TEAM_WIN', 'HOME_TEAM_REST']]
+    new_games = new_games.rename(columns={'HOME_TEAM_REST': 'NEW_HOME_TEAM_REST', 'HOME_TEAM_WIN': 'NEW_HOME_TEAM_WIN'})
+
+    merged = pd.merge(old_games, new_games, on='GAME_ID')
+    merged.to_csv('../data/merged_rest.csv', index=False)
 
 
 def measure_significance(store_path: str, load_path: str) -> None:
     data = load_scaled_data(load_path)
     data = get_team_data(data)
 
-
-    count_rest_influence(data)
-    return
-
     correlation_matrix = data.corr()
     home_team_win_corr = correlation_matrix['HOME_TEAM_WIN'].drop('HOME_TEAM_WIN')
     home_team_win_corr = home_team_win_corr.abs().sort_values(ascending=False)
-    print(home_team_win_corr.head(20))
+    print(home_team_win_corr.head)
 
     X = data.drop(['HOME_TEAM_WIN'], axis=1)
     y = data['HOME_TEAM_WIN']
